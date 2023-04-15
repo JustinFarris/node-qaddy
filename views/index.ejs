@@ -1,0 +1,96 @@
+<!-- views/index.ejs -->
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Simple Web App</title>
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+  <h1>Server & Browser Info</h1>
+  <p>Server: <%= process.platform %> | <%= process.version %></p>
+  <p id="browserInfo">Browser: </p>
+  <h2>Add a sentence:</h2>
+  <input id="inputText" type="text" maxlength="200" />
+  <button id="addBtn">Add to List</button>
+  <button id="copyBtn">Copy to Clipboard</button>
+  <br />
+  <label for="sortSelect">Sort by:</label>
+  <select id="sortSelect">
+    <option value="name">Name</option>
+    <option value="date">Date Added</option>
+    <option value="length">Length</option>
+  </select>
+  <ul id="list"></ul>
+  <script>
+    const socket = io();
+const inputText = document.getElementById('inputText');
+const addBtn = document.getElementById('addBtn');
+const copyBtn = document.getElementById('copyBtn');
+const sortSelect = document.getElementById('sortSelect');
+const list = document.getElementById('list');
+const browserInfo = document.getElementById('browserInfo');
+let items = [];
+
+browserInfo.innerText += navigator.userAgent;
+
+addBtn.addEventListener('click', () => {
+  const text = inputText.value.trim();
+  if (text) {
+    const newItem = {
+      text,
+      date: new Date(),
+      length: text.length,
+    };
+    socket.emit('addItem', newItem);
+    inputText.value = '';
+  }
+});
+
+copyBtn.addEventListener('click', () => {
+  const textToCopy = items.map((item) => item.text).join('\n');
+  navigator.clipboard.writeText(textToCopy).then(() => {
+    alert('List copied to clipboard!');
+  });
+});
+
+sortSelect.addEventListener('change', () => {
+  socket.emit('sortList', sortSelect.value);
+});
+
+socket.on('addItem', (data) => {
+  items.push(data);
+  displayItems();
+});
+
+socket.on('sortList', (sortType) => {
+  items.sort((a, b) => {
+    switch (sortType) {
+      case 'name':
+        return a.text.localeCompare(b.text);
+      case 'date':
+        return a.date - b.date;
+      case 'length':
+        return a.length - b.length;
+      default:
+        return 0;
+    }
+  });
+  displayItems();
+});
+
+function displayItems() {
+  list.innerHTML = '';
+  items.forEach((item) => {
+    const li = document.createElement('li');
+    li.innerText = item.text;
+    list.appendChild(li);
+  });
+}
+
+window.addEventListener('beforeunload', () => {
+  items = [];
+  displayItems();
+});
+  </script>
+</body>
+</html>
